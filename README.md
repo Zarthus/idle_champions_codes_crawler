@@ -1,28 +1,20 @@
-# TODOPROJNAME
+# liccrawler
 
-[![Build Status](https://github.com/zarthus/TODOPROJNAME/actions/workflows/rust.yml/badge.svg)](https://github.com/zarthus/TODOPROJNAME/actions)
-[![Docs.rs](https://docs.rs/TODOPROJNAME/badge.svg)](https://docs.rs/TODOPROJNAME/latest/)
+Liefland Idle Champions Codes Crawler
+
+[![Build Status](https://github.com/zarthus/liccrawler/actions/workflows/rust.yml/badge.svg)](https://github.com/zarthus/liccrawler/actions)
+[![Docs.rs](https://docs.rs/liccrawler/badge.svg)](https://docs.rs/liccrawler/latest/)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](README#license)
 
-TODO
+Crawler that interfaces with the API for [idle_champions_codes_api](https://github.com/Liefland/idle_champions_codes_api),
+the official one maintained by Liefland is hosted at [codes.idlechampions.liefland.net](https://codes.idlechampions.liefland.net/)
+
+All repositories we maintain: [GitHub](https://github.com/Liefland?q=idle_champions)
 
 ## Installation
 
-Add as a dependency: 
-- `cargo add TODOPROJNAME`
-
 Install as software:
-- `cargo install TODOPROJNAME`
-
-## Examples
-
-```rust
-fn main() { // TODO
-    println!("Hello, world!");
-}
-```
-
-For more examples, see the [examples](examples) directory.
+- `cargo install liccrawler`
 
 ## Contributing
 

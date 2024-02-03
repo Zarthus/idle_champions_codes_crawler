@@ -1,23 +1,35 @@
 [package]
-name = "TODOPROJNAME"
-description = "TODO"
+name = "liccrawler"
+description = "Crawls various sources for Idle Champions Codes"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = [
     "Zarthus <zarthus@liefland.net>",
 ]
-repository = "https://github.com/zarthus/TODOPROJNAME"
-homepage = "https://github.com/zarthus/TODOPROJNAME"
+repository = "https://github.com/zarthus/liccrawler"
+homepage = "https://github.com/zarthus/liccrawler"
 categories = []
 keywords = []
 readme = "README.md"
 publish = false
 
 [dependencies]
+directories = "5.0.1"
+licc = { version = "0.2.0", features = ["write"] }
+log = "0.4.20"
+once_cell = "1.19.0"
+serde = { version = "1.0.196", features = ["derive"] }
+serenity = { version = "0.12.0", features = ["http", "builder"], optional = true }
+time = "0.3.31"
+tokio = { version = "1.35.1", features = ["macros"] }
+toml = "0.8.8"
+zarthus_env_logger = { version = "0.3.0", features = ["time"], default-features = false }
 
 [features]
 default = [
+    "discord"
 ]
+discord = ["serenity"]
 
 [badges]
