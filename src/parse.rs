@@ -41,7 +41,6 @@ impl TimeParser {
             return Some(next_week());
         }
 
-        println!("try_match {}", normalized_ts);
         // stupid assumption: Swap numbers if time contains AM or PM
         let is_american = normalized_ts.contains("am") || normalized_ts.contains("pm");
 
@@ -60,7 +59,6 @@ impl TimeParser {
         }
 
         if let Some(mtch) = self.regex_mmddyyyy.captures(&normalized_ts) {
-            println!("matched");
             return self
                 .handle_captures(mtch, Some(3), 1, 2, false, is_american)
                 .unwrap_or(None);
@@ -121,7 +119,6 @@ impl TimeParser {
             None => self.predict_year(m),
         };
 
-        println!("{}-{}-{}", y, m, d);
         y = self.normalize_year(y);
 
         Ok(self.format_from_ymd(y, m, d))
