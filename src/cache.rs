@@ -41,12 +41,17 @@ pub fn read() -> Cache {
 
 pub fn write(cache: Cache) {
     std::fs::write(dir().join("cache.toml"), toml::to_string(&cache).unwrap()).unwrap();
+
+    debug!("Cache written to disk");
 }
 
 impl Cache {
     pub fn has(&self, code: &str) -> bool {
         match self.items.get(code) {
-            Some(item) => *NOW.get().unwrap() > *item,
+            Some(item) => match self.now() {
+                Some(n) => n.lt(item),
+                None => false,
+            },
             None => false,
         }
     }
@@ -57,16 +62,24 @@ impl Cache {
                 .remove(&self.items.keys().next().unwrap().to_string());
         }
 
-        self.items
-            .insert(code.clone(), NEXT_TTL.get().unwrap().clone());
+        self.items.insert(code.clone(), *NEXT_TTL.get().unwrap());
     }
 
     pub fn bust(&mut self) {
+        let n = match self.now() {
+            Some(n) => n,
+            None => return,
+        };
+
         for (key, value) in self.items.clone() {
-            if *NOW.get().unwrap() > value {
+            if value.lt(&n) {
                 self.items.remove(&key);
             }
         }
+    }
+
+    fn now(&self) -> Option<u64> {
+        NOW.get().map(|n| *n)
     }
 }
 

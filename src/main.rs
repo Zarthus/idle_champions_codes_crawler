@@ -52,6 +52,11 @@ async fn main() {
 
         for (_, value) in requests {
             for request in value {
+                if cache.has(&request.code) {
+                    debug!("Skipping '{}', already stored.", &request.code);
+                    continue;
+                }
+
                 responses.insert(request.code.clone(), None);
             }
         }
