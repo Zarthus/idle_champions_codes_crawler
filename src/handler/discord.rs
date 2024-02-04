@@ -1,5 +1,5 @@
 use crate::config::DiscordConfig;
-use crate::parse::{next_week, parse_user_expires_string, validate_code};
+use crate::parse::{next_week, validate_code, TimeParser};
 use licc::write::{InsertCodeRequest, SourceLookup};
 use serenity::all::{ChannelId, GatewayIntents};
 
@@ -33,17 +33,21 @@ pub async fn handle(cfg: &DiscordConfig) -> Result<Vec<InsertCodeRequest>, Disco
 
     let mut codes: Vec<InsertCodeRequest> = vec![];
 
+    let timeparser = TimeParser::new();
     for message in messages {
         let guild_id = message.guild_id.map(|g| g.get()).unwrap_or(cfg.guild_id);
         let channel_id = message.channel_id.get();
-        let (code, expires_at, creator_name, creator_url) =
-            match parse(message.content, message.timestamp.timestamp() as u64) {
-                Ok(parsed) => parsed,
-                Err(err) => {
-                    error!("Error parsing message: {}", err);
-                    continue;
-                }
-            };
+        let (code, expires_at, creator_name, creator_url) = match parse(
+            message.content,
+            message.timestamp.timestamp() as u64,
+            &timeparser,
+        ) {
+            Ok(parsed) => parsed,
+            Err(err) => {
+                error!("Error parsing message: {}", err);
+                continue;
+            }
+        };
 
         codes.push(InsertCodeRequest {
             code,
@@ -70,8 +74,16 @@ async fn client(cfg: &DiscordConfig) -> serenity::Client {
         .expect("Error creating client")
 }
 
-fn parse(message: String, message_ts: u64) -> Result<(String, u64, String, String), &'static str> {
+fn parse(
+    message: String,
+    message_ts: u64,
+    timeparser: &TimeParser,
+) -> Result<(String, u64, String, String), &'static str> {
     let mut parts = message.split('\n');
+
+    if parts.clone().count() < 3 {
+        return Err("Likely unrecoverable message format");
+    }
 
     let code = parts.next().unwrap().to_string().replace(' ', "");
 
@@ -79,7 +91,7 @@ fn parse(message: String, message_ts: u64) -> Result<(String, u64, String, Strin
         return Err("Invalid code length");
     }
 
-    let creator_name_default = parts.next();
+    let creator_name_fallback = parts.next();
 
     let creator_url = match parts.next() {
         Some(url) => url,
@@ -87,25 +99,117 @@ fn parse(message: String, message_ts: u64) -> Result<(String, u64, String, Strin
     };
 
     // https://twitch.tv/foo -> foo
-    let mut creator_name = creator_url.split('/').last().unwrap().to_lowercase();
+    let mut creator_name = creator_url
+        .split('/')
+        .last()
+        .unwrap_or(creator_name_fallback.unwrap_or("Unknown"))
+        .to_lowercase();
     // might be a youtube link
     if creator_name.contains('?') {
         debug!(
-            "Creator name looks fishy, using default: {}",
-            creator_name_default.unwrap_or("Unknown")
+            "Creator name looks fishy, using fallback: {}",
+            creator_name_fallback.unwrap_or("Unknown")
         );
 
-        creator_name = creator_name_default.unwrap_or("Unknown").to_string();
+        creator_name = creator_name_fallback.unwrap_or("Unknown").to_string();
     }
 
     parts.next();
 
     let expires_at = match parts.next() {
         None => next_week(),
-        Some(txt) => {
-            parse_user_expires_string(txt.to_string()).unwrap_or(message_ts + 60 * 60 * 24 * 7)
-        }
+        Some(txt) => timeparser
+            .parse(txt.to_string(), true)
+            .unwrap_or(message_ts + (60 * 24 * 7)),
     };
 
     Ok((code, expires_at, creator_name, creator_url.to_string()))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    macro_rules! test_inputs {
+        () => {
+            vec![
+                "CODE-AAAA-BBBB\nTest Input\nhttps://www.twitch.tv/foo\n1x :bar:\nExpires Next Week",
+                "CODE-AAAA-BBBB\nTest Input\nhttps://www.twitch.tv/foo\n1x :bar:\nExpires Jan 26th",
+                "REPP-PERE-SEAN\nGaar slings some hash\nhttps://www.twitch.tv/gaarawarr\n1x :electrumchest:\nExpires Next Week",
+                "EARD-EEZH-ERKS\nGina Darling - Idle Insights\nhttps://youtu.be/sNFoGtn-Qfw?si=j8PF5-tgMw6liltq\n1x :electrumchest:\nExpires Jan 26th"
+            ]
+        }
+    }
+    const DEFAULT_MESSAGE_TS: u64 = 1726221600;
+
+    #[test]
+    fn test_parse_many() {
+        let tp = TimeParser::new();
+
+        for input in test_inputs!() {
+            let (code, expires_at, creator_name, creator_url) =
+                parse(input.to_string(), DEFAULT_MESSAGE_TS, &tp).unwrap();
+            assert!(!code.is_empty(), "Input: {}", input);
+            assert!(expires_at > 0, "Input: {}", input);
+            assert!(!creator_name.is_empty(), "Input: {}", input);
+            assert!(!creator_url.is_empty(), "Input: {}", input);
+        }
+    }
+
+    #[test]
+    fn test_parse() {
+        let tp = TimeParser::new();
+
+        let input =
+            "CODE-AAAA-BBBB\nTest Input\nhttps://www.twitch.tv/foo\n1x :bar:\nExpires WeDontKnow";
+        let (code, expires_at, creator_name, creator_url) =
+            parse(input.to_string(), 0, &tp).unwrap();
+
+        assert_eq!(code, "CODE-AAAA-BBBB");
+        assert_eq!(expires_at, 10080); // next week (60 * 24 * 7) added to the message timestamp (0 seconds)
+        assert_eq!(creator_name, "foo");
+        assert_eq!(creator_url, "https://www.twitch.tv/foo");
+    }
+
+    #[test]
+    fn test_parse_youtube() {
+        let tp = TimeParser::new();
+
+        let input =
+            "EARD-EEZH-ERKS-AAAA\nGina Darling - Idle Insights\nhttps://youtu.be/sNFoGtn-Qfw?si=j8PF5-tgMw6liltq\n1x :electrumchest:\nExpires Jan 26th";
+        let (code, expires_at, creator_name, creator_url) =
+            parse(input.to_string(), DEFAULT_MESSAGE_TS, &tp).unwrap();
+
+        assert_eq!(code, "EARD-EEZH-ERKS-AAAA");
+        assert_eq!(expires_at, 1706227200);
+        assert_eq!(creator_name, "Gina Darling - Idle Insights");
+        assert_eq!(
+            creator_url,
+            "https://youtu.be/sNFoGtn-Qfw?si=j8PF5-tgMw6liltq"
+        );
+    }
+
+    #[test]
+    fn test_parse_relative_time() {
+        let tp = TimeParser::new();
+
+        let input =
+            "CODE-AAAA-BBBB\nTest Input\nhttps://www.twitch.tv/foo\n1x :bar:\nExpires Next Week";
+        let (_code, expires_at, _creator_name, _creator_url) =
+            parse(input.to_string(), DEFAULT_MESSAGE_TS, &tp).unwrap();
+
+        assert_eq!(expires_at, next_week());
+    }
+
+    #[test]
+    fn test_parse_absolute_time() {
+        let tp = TimeParser::new();
+
+        let input =
+            "CODE-AAAA-BBBB\nTest Input\nhttps://www.twitch.tv/foo\n1x :bar:\nExpires Jan 26th";
+        let (_code, expires_at, _creator_name, _creator_url) =
+            parse(input.to_string(), DEFAULT_MESSAGE_TS, &tp).unwrap();
+
+        assert_eq!(expires_at, 1706227200);
+    }
 }

@@ -3,7 +3,6 @@ use crate::config::dir;
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 use std::time::SystemTime;
-
 const CACHE_LIMIT: u32 = 200;
 
 static NOW: OnceCell<u64> = OnceCell::new();

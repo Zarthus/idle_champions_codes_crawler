@@ -780,6 +780,7 @@ dependencies = [
  "licc",
  "log",
  "once_cell",
+ "regex",
  "serde",
  "serenity",
  "time",
