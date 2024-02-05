@@ -2,7 +2,7 @@
 
 Liefland Idle Champions Codes Crawler
 
-[![Build Status](https://github.com/zarthus/liccrawler/actions/workflows/rust.yml/badge.svg)](https://github.com/zarthus/liccrawler/actions)
+[![Build Status](https://github.com/Liefland/idle_champions_codes_crawler/actions/workflows/rust.yml/badge.svg)](https://github.com/Liefland/idle_champions_codes_crawler/actions)
 [![Docs.rs](https://docs.rs/liccrawler/badge.svg)](https://docs.rs/liccrawler/latest/)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](README#license)
 
