@@ -22,6 +22,9 @@ pub struct ClientConfig {
 pub struct DiscordConfig {
     /// Enabled: Required
     pub enabled: bool,
+    /// Send acknowledgements (reactions) to cache remotely and display the bot handled it to others;
+    /// This increases the number of requests to discord by 1 for each message parsed (only the first time)
+    pub acknowledge: bool,
     /// Application ID: Optional, improved logging
     pub application_id: u64,
     /// Public Key: Optional

@@ -1,7 +1,8 @@
 use crate::config::DiscordConfig;
 use crate::parse::{next_week, validate_code, TimeParser};
 use licc::write::{InsertCodeRequest, SourceLookup};
-use serenity::all::{ChannelId, GatewayIntents};
+use serenity::all::{ChannelId, GatewayIntents, MessageId, ReactionType};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum DiscordError {
@@ -15,7 +16,7 @@ pub async fn handle(cfg: &DiscordConfig) -> Result<Vec<InsertCodeRequest>, Disco
     }
 
     let channel_id = ChannelId::new(cfg.channel_id);
-    let client = client(cfg).await;
+    let client: serenity::Client = client(cfg).await;
 
     let auth = client
         .http
@@ -32,19 +33,27 @@ pub async fn handle(cfg: &DiscordConfig) -> Result<Vec<InsertCodeRequest>, Disco
         .map_err(DiscordError::Serenity)?;
 
     let mut codes: Vec<InsertCodeRequest> = vec![];
-
+    let ack = cfg.acknowledge;
+    let mut acks: Vec<MessageId> = vec![];
     let timeparser = TimeParser::new();
+
     for message in messages {
+        if message.reactions.iter().any(|r| r.me) {
+            trace!("Skipping message with existing reaction from self");
+            continue;
+        }
+
         let guild_id = message.guild_id.map(|g| g.get()).unwrap_or(cfg.guild_id);
         let channel_id = message.channel_id.get();
         let (code, expires_at, creator_name, creator_url) = match parse(
-            message.content,
+            message.content.clone(),
             message.timestamp.timestamp() as u64,
             &timeparser,
         ) {
             Ok(parsed) => parsed,
             Err(err) => {
-                error!("Error parsing message: {}", err);
+                error!("Error parsing message {}: {}", message.id, err);
+                error!("Message: {}", message.content);
                 continue;
             }
         };
@@ -61,9 +70,30 @@ pub async fn handle(cfg: &DiscordConfig) -> Result<Vec<InsertCodeRequest>, Disco
                 url: format!("https://discord.com/channels/{guild_id}/{channel_id}"),
             }),
         });
+        if ack {
+            acks.push(message.id);
+        }
+    }
+
+    for message_id in acks {
+        acknowledge(client.http.clone(), channel_id, message_id).await;
     }
 
     Ok(codes)
+}
+
+async fn acknowledge(
+    http: Arc<serenity::http::Http>,
+    channel_id: ChannelId,
+    message_id: MessageId,
+) {
+    // We don't need to handle the result here, we just want to log, as acknowledging is optional behaviour and not critical if fails,
+    // in addition, it's an optional permission that the bot might not have. (though if it doesn't have it, you should probably turn it off in the config)
+    http.create_reaction(channel_id, message_id, &ReactionType::from('👍'))
+        .await
+        .inspect_err(|e| error!("Error acknowledging message: {}", e))
+        .inspect(|_| info!("Acknowledged message"))
+        .ok();
 }
 
 async fn client(cfg: &DiscordConfig) -> serenity::Client {
