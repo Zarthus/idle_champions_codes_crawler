@@ -92,7 +92,7 @@ async fn acknowledge(
     http.create_reaction(channel_id, message_id, &ReactionType::from('👍'))
         .await
         .inspect_err(|e| error!("Error acknowledging message: {}", e))
-        .inspect(|_| info!("Acknowledged message"))
+        .inspect(|_| debug!("Acknowledged message {}", message_id))
         .ok();
 }
 
