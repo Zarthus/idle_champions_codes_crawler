@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::num::ParseIntError;
 use std::ops::Add;
 use time::{Date, Duration, Month};

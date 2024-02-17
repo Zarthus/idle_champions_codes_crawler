@@ -1,3 +1,4 @@
+#[cfg(feature = "discord")]
 use crate::handler::discord;
 use licc::write::InsertCodeRequest;
 use std::collections::HashMap;
@@ -19,9 +20,11 @@ async fn main() {
     cache::setup();
     let mut cache = cache::read();
 
+    #[allow(unused_mut)]
     let mut requests: HashMap<&str, Vec<InsertCodeRequest>> = HashMap::new();
     let mut responses: HashMap<String, Option<i32>> = HashMap::new();
 
+    #[cfg(feature = "discord")]
     for (name, discord) in &config.discord {
         if discord.enabled {
             let outcome = discord::handle(discord).await;

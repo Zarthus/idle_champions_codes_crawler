@@ -3,9 +3,18 @@ unlicensed = "deny"
 allow = [
     "MIT",
     "Apache-2.0",
-    "Unicode-DFS-2016"
+    "Unicode-DFS-2016",
+    "ISC",
+    "MPL-2.0",
+    "BSD-3-Clause",
+    "OpenSSL"
 ]
 copyleft = "warn"
 default = "deny"
 confidence-threshold = 0.8
 exceptions = []
+
+[[licenses.clarify]]
+name = "ring"
+expression = "ISC AND MIT AND OpenSSL"
+license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
